@@ -2277,7 +2277,8 @@ Vorschau – Ändern
 • Den Maßstab zwischen zwei andere Profile ziehen.
 • Rechtsklick: Zurücksetzen und weitere Befehle. Doppelklick auf eine
   Beschriftung oder Grenze öffnet die Schicht im Editor.
-• Strg + Mausrad zoomt.  Strg+Z / Strg+Y: Rückgängig / Wiederholen.
+• Strg + Mausrad zoomt; mit gedrücktem Mausrad (mittlere Taste) die Ansicht
+  verschieben.  Strg+Z / Strg+Y: Rückgängig / Wiederholen.
 
 Export
 • Der Export entspricht exakt der Vorschau (PNG, PDF, SVG, TIFF, JPG).
@@ -2766,7 +2767,8 @@ if tk is not None:
         DRAG_THRESHOLD = 3              # Pixel, ab denen aus einem Klick ein Ziehen wird
         RULER_KEY = "ticks"             # Auswahlschlüssel des Maßstabs (Größe der Zahlen)
         HINT = ("Klick: auswählen · Strg/Umschalt+Klick oder Rahmen: mehrere · Ziehen: verschieben · "
-                "Mausrad: Größe · Grenze in einer Säule ziehen: Mächtigkeit ändern · Rechtsklick: Menü")
+                "Mausrad: Größe · Grenze in einer Säule ziehen: Mächtigkeit ändern · "
+                "Mausrad gedrückt: Ansicht verschieben · Rechtsklick: Menü")
 
         def __init__(self, master, app):
             super().__init__(master)
@@ -2823,6 +2825,11 @@ if tk is not None:
             self._blit_region = None
             self._zoom_accum = 0.0
             self._scroll_accum = 0.0
+            self._pan = None          # Verschieben der Ansicht mit gedrücktem Mausrad
+            for widget in (self.container, self.widget):
+                widget.bind("<ButtonPress-2>", self._pan_start, add="+")
+                widget.bind("<B2-Motion>", self._pan_move, add="+")
+                widget.bind("<ButtonRelease-2>", self._pan_end, add="+")
             self.menu = tk.Menu(self, tearoff=False)
 
             self.canvas.mpl_connect("button_press_event", self.on_press)
@@ -2942,6 +2949,26 @@ if tk is not None:
                 self.container.xview_scroll(-units * 2, "units")
             else:
                 self.container.yview_scroll(-units * 2, "units")
+
+        def _pan_start(self, event):
+            """Gedrücktes Mausrad: Ansicht greifen (Bildschirmkoordinaten, damit das
+            mitwandernde Blatt die Bewegung nicht verfälscht)."""
+            self._pan = (event.x_root, event.y_root)
+            self.container.scan_mark(event.x_root, event.y_root)
+            for widget in (self.container, self.widget):
+                widget.configure(cursor="fleur")
+
+        def _pan_move(self, event):
+            if self._pan is None:
+                return
+            self.container.scan_dragto(event.x_root, event.y_root, gain=1)
+
+        def _pan_end(self, _event=None):
+            if self._pan is None:
+                return
+            self._pan = None
+            for widget in (self.container, self.widget):
+                widget.configure(cursor="")
 
         def scroll_container(self, event):
             step = event.delta / 120.0 if event.delta else 0.0
@@ -3102,8 +3129,8 @@ if tk is not None:
 
         # ----- Maus ---------------------------------------------------------
         def on_press(self, event):
-            if not self.result or event.x is None or self.drag is not None:
-                return
+            if not self.result or event.x is None or self.drag is not None or event.button == 2:
+                return     # mittlere Taste: Ansicht verschieben (eigene Tk-Bindung)
             self.widget.focus_set()
             mods = self._mods(event)
             item, boundary = self._hit(event)
@@ -3454,7 +3481,7 @@ if tk is not None:
             self.app.mark_dirty()
 
         def _hover(self, event):
-            if not self.result or event.x is None:
+            if not self.result or event.x is None or self._pan is not None:
                 return
             item, boundary = self._hit(event)
             if item is not None:

@@ -298,6 +298,40 @@ def main():
     pump(app, 0.4)
     check(len(app.project["profiles"]) == count + 1, "Wiederholen legt das Profil erneut an")
 
+    # --- Mit gedrücktem Mausrad (mittlere Taste) die Ansicht verschieben
+    for _ in range(3):
+        pv.zoom_step(1)
+    pump(app, 0.6)
+    check(pv.scrollable(), "Ansicht nach dem Zoomen verschiebbar")
+    pv.container.xview_moveto(0.3)
+    pv.container.yview_moveto(0.0)      # oben: nach unten ist Platz zum Verschieben
+    pump(app, 0.2)
+    x0, y0 = pv.container.xview()[0], pv.container.yview()[0]
+    v_scroll = (pv.container.yview()[1] - pv.container.yview()[0]) < 0.999
+    w = pv.widget
+    rx, ry = w.winfo_rootx() + 200, w.winfo_rooty() + 200
+    w.event_generate("<ButtonPress-2>", x=200, y=200, rootx=rx, rooty=ry)
+    w.event_generate("<B2-Motion>", x=120, y=150, rootx=rx - 80, rooty=ry - 50)
+    w.event_generate("<ButtonRelease-2>", x=120, y=150, rootx=rx - 80, rooty=ry - 50)
+    pump(app, 0.3)
+    x1, y1 = pv.container.xview()[0], pv.container.yview()[0]
+    check(x1 > x0 and (y1 > y0 or not v_scroll),
+          f"Gedrücktes Mausrad verschiebt die Ansicht ({x0:.3f}/{y0:.3f} -> {x1:.3f}/{y1:.3f})")
+    check(w.cget("cursor") == "" and pv._pan is None, "Verschieben beendet, Mauszeiger zurückgesetzt")
+    check(pv.selection == [] or pv.drag is None, "Mittlere Taste startet kein Ziehen von Elementen")
+    # auch über dem grauen Rand
+    c = pv.container
+    crx, cry = c.winfo_rootx() + 5, c.winfo_rooty() + 5
+    c.event_generate("<ButtonPress-2>", x=5, y=5, rootx=crx, rooty=cry)
+    c.event_generate("<B2-Motion>", x=45, y=35, rootx=crx + 40, rooty=cry + 30)
+    c.event_generate("<ButtonRelease-2>", x=45, y=35, rootx=crx + 40, rooty=cry + 30)
+    pump(app, 0.3)
+    x2, y2 = pv.container.xview()[0], pv.container.yview()[0]
+    check(x2 < x1 and (y2 < y1 or not v_scroll),
+          f"Verschieben auch über dem grauen Rand ({x1:.3f}/{y1:.3f} -> {x2:.3f}/{y2:.3f})")
+    pv.zoom_fit()
+    pump(app, 0.4)
+
     # --- Speichern / Laden / Export
     path = os.path.join(OUT, "gui_projekt.json")
     app.path = path

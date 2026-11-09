@@ -47,7 +47,7 @@ Gefällt Ihnen das Programm? Über eine Unterstützung per
 | **Beschriftungen ändern** | Auswahl **ziehen** = verschieben, **Mausrad** = Größe, Pfeiltasten = fein verschieben, +/− = Größe, **Entf** = zurücksetzen, **Rechtsklick** = Menü, **Doppelklick** = Schicht im Editor öffnen. Gilt für Schichtbeschriftungen, Werte im Balken, Überschriften, Maßstabstitel, Maßstabszahlen und Koten; die Änderungen werden im Projekt gespeichert. |
 | **Schichten in der Säule ziehen** | Eine Schichtgrenze mit der Maus nach oben oder unten ziehen: die Schicht darüber wird dicker, die darunter dünner, die Werte im Editor ändern sich mit (in jeder Eingabeart). Mit **Umschalt** wandern alle tieferen Grenzen mit. |
 | **Vorschau = Export** | Das Blatt wird in cm aufgebaut; Vorschau und Export sind identisch. In PDF-Dateien bleiben Texte bearbeitbar. |
-| **Weiteres** | Zoom (Strg+Mausrad), Rückgängig/Wiederholen (Strg+Z / Strg+Y), Höhenkoten je Profil oder an allen Schichtgrenzen, Zusatzangaben in der Beschriftung (Mächtigkeit, Tiefe von–bis, Höhe von–bis), Schraffuren, automatische Textfarbe, „Farben nach Bezeichnung angleichen“. |
+| **Weiteres** | Zoom (Strg+Mausrad), Ansicht verschieben mit gedrücktem Mausrad, Rückgängig/Wiederholen (Strg+Z / Strg+Y), Höhenkoten je Profil oder an allen Schichtgrenzen, Zusatzangaben in der Beschriftung (Mächtigkeit, Tiefe von–bis, Höhe von–bis), Schraffuren, automatische Textfarbe, „Farben nach Bezeichnung angleichen“. |
 
 ## Eingabearten
 
