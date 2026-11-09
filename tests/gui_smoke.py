@@ -284,6 +284,20 @@ def main():
     check(app.project["settings"]["ruler_slot"] == len(app.project["profiles"]),
           "Maßstab bleibt beim Anfügen rechts außen")
 
+    # --- Rückgängig von „Neues Profil“ kehrt zum vorher bearbeiteten Profil zurück
+    app.select_profile(1)
+    pump(app, 0.2)
+    count = len(app.project["profiles"])
+    app.add_profile()
+    pump(app, 0.3)
+    app.undo()
+    pump(app, 0.4)
+    check(len(app.project["profiles"]) == count and app.current == 1,
+          f"Rückgängig wählt wieder das vorher bearbeitete Profil (aktuell {app.current + 1})")
+    app.redo()
+    pump(app, 0.4)
+    check(len(app.project["profiles"]) == count + 1, "Wiederholen legt das Profil erneut an")
+
     # --- Speichern / Laden / Export
     path = os.path.join(OUT, "gui_projekt.json")
     app.path = path

@@ -2347,14 +2347,20 @@ if tk is not None:
             self.canvas.configure(yscrollcommand=self.vbar.set)
             self.canvas.pack(side="left", fill="both", expand=True)
             self.vbar.pack(side="right", fill="y")
+            self._wheel_accum = 0.0
+            # über der Bildlaufleiste genauso weit blättern wie über der Liste
+            self.vbar.bind("<MouseWheel>", lambda e: (self.scroll_wheel(e), "break")[1])
 
         def scroll_wheel(self, event):
             first, last = self.canvas.yview()
             if first <= 0.0 and last >= 1.0:
                 return
-            delta = event.delta
-            steps = -int(delta / 120) if abs(delta) >= 120 else (-1 if delta > 0 else 1)
-            self.canvas.yview_scroll(steps, "units")
+            # Touchpads liefern Bruchteile einer Rasterstufe – aufsummieren
+            self._wheel_accum += -event.delta / 120.0
+            steps = int(self._wheel_accum)
+            if steps:
+                self._wheel_accum -= steps
+                self.canvas.yview_scroll(steps, "units")
 
         def scroll_into_view(self, widget):
             self.update_idletasks()
@@ -2548,6 +2554,8 @@ if tk is not None:
                 self.app.track_entry(entry)
                 # Tab in eine verdeckte Zeile: Liste mitscrollen
                 entry.bind("<FocusIn>", lambda e, f=frame: self.list.scroll_into_view(f), add="+")
+            for widget in (color_btn, hatch_combo, up, down, delete):
+                widget.bind("<FocusIn>", lambda e, f=frame: self.list.scroll_into_view(f), add="+")
             row["traces"] = [
                 (name_var, name_var.trace_add("write", lambda *_: self._on_layer_text(row, "name"))),
                 (details_var, details_var.trace_add("write", lambda *_: self._on_layer_text(row, "details"))),
@@ -3648,6 +3656,8 @@ if tk is not None:
             self.dirty = False
             self.undo_stack = []
             self.redo_stack = []
+            self.undo_sel = []        # bearbeitetes Profil je Rückgängig-Schritt
+            self.redo_sel = []
             self._edit_source = None
             self._last_undo_kind = None
             self._last_undo_time = 0.0
@@ -4109,11 +4119,20 @@ if tk is not None:
                 return
             if not (self.undo_stack and self.undo_stack[-1] == snapshot):
                 self.undo_stack.append(snapshot)
+                self.undo_sel.append(self._current_uid())   # Auswahl zum Zeitpunkt davor
                 del self.undo_stack[:-200]
+                del self.undo_sel[:-200]
             self.redo_stack.clear()
+            self.redo_sel.clear()
             self._last_undo_kind = kind
             self._last_undo_time = now
             self._edit_source = None
+
+        def _current_uid(self):
+            profiles = self.project["profiles"]
+            if not profiles:
+                return None
+            return profiles[min(self.current, len(profiles) - 1)]["uid"]
 
         def checkpoint(self):
             """Vor einer Änderung aufrufen (Schaltflächen, Listen, Vorschau)."""
@@ -4122,6 +4141,8 @@ if tk is not None:
         def discard_checkpoint(self):
             if self.undo_stack and self.undo_stack[-1] == self.snapshot():
                 self.undo_stack.pop()
+                if self.undo_sel:
+                    self.undo_sel.pop()
 
         def track_entry(self, entry):
             # Ein neu fokussiertes Feld beginnt einen neuen Rückgängig-Schritt.
@@ -4146,8 +4167,10 @@ if tk is not None:
                 self.bell()
                 return
             self.redo_stack.append(self.snapshot())
+            self.redo_sel.append(self._current_uid())
             data = json.loads(self.undo_stack.pop())
-            self.load_project_data(data, keep_history=True, keep_selection=True)
+            uid = self.undo_sel.pop() if self.undo_sel else None
+            self.load_project_data(data, keep_history=True, keep_selection=True, select_uid=uid)
             self._reset_undo_grouping()
             self.mark_dirty()
 
@@ -4156,21 +4179,28 @@ if tk is not None:
                 self.bell()
                 return
             self.undo_stack.append(self.snapshot())
+            self.undo_sel.append(self._current_uid())
             data = json.loads(self.redo_stack.pop())
-            self.load_project_data(data, keep_history=True, keep_selection=True)
+            uid = self.redo_sel.pop() if self.redo_sel else None
+            self.load_project_data(data, keep_history=True, keep_selection=True, select_uid=uid)
             self._reset_undo_grouping()
             self.mark_dirty()
 
         # ----- Projektzustand -----------------------------------------------
-        def load_project_data(self, data, keep_history=False, keep_selection=False):
+        def load_project_data(self, data, keep_history=False, keep_selection=False,
+                              select_uid=None):
             uid = None
             previous = self.current
             if keep_selection and self.project["profiles"]:
                 uid = self.project["profiles"][min(self.current, len(self.project["profiles"]) - 1)]["uid"]
+            if select_uid is not None:
+                uid = select_uid          # bei Rückgängig: das damals bearbeitete Profil
             self.project = normalize_project(data)
             if not keep_history:
                 self.undo_stack.clear()
                 self.redo_stack.clear()
+                self.undo_sel.clear()
+                self.redo_sel.clear()
             self._reset_undo_grouping()
             index = 0
             if keep_selection:
