@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.tmp
+
+# Testausgaben und Arbeitsdateien
+tests/output/
+tests/review/
+
+# lokale Ausgangsversion, Referenzbild und eigene Projektdaten (nicht veröffentlichen)
+Vorlage/
